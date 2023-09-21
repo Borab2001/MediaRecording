@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "981496152728",
+    "project_id": "mediaapp-2fc80",
+    "storage_bucket": "mediaapp-2fc80.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:981496152728:android:79cbca3754fe9aff6706ed",
+        "android_client_info": {
+          "package_name": "comp5216.sydney.edu.au.mediaapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRGB469X-aip9MlCSEEcCB7NgfTYCb2nc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
