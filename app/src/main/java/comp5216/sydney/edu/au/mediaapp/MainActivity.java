@@ -16,35 +16,55 @@ import androidx.core.content.ContextCompat;
 import androidx.lifecycle.LifecycleOwner;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.firebase.FirebaseApp;
 
 import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final int PERMISSIONS_REQUEST_CODE = 10;
-    private static final String[] PERMISSIONS = {
+    private static final String[] CAMERA_STORAGE_PERMISSIONS = {
             Manifest.permission.CAMERA,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE,
-            Manifest.permission.ACCESS_FINE_LOCATION
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
     };
+
+    private static final String[] LOCATION_PERMISSIONS = {
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+    };
+
     private PreviewView previewView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Initialize Firebase
+        FirebaseApp.initializeApp(this);
+
         setContentView(R.layout.activity_main);
 
         previewView = findViewById(R.id.camera_preview);
 
-        if (!hasAllPermissions()) {
-            ActivityCompat.requestPermissions(this, PERMISSIONS, PERMISSIONS_REQUEST_CODE);
+        if (!hasCameraStoragePermissions()) {
+            ActivityCompat.requestPermissions(this, CAMERA_STORAGE_PERMISSIONS, PERMISSIONS_REQUEST_CODE);
+        } else if (!hasLocationPermissions()) {
+            ActivityCompat.requestPermissions(this, LOCATION_PERMISSIONS, PERMISSIONS_REQUEST_CODE);
         } else {
             initializeCamera();
         }
     }
 
-    private boolean hasAllPermissions() {
-        for (String permission : PERMISSIONS) {
+    private boolean hasCameraStoragePermissions() {
+        return hasPermissions(CAMERA_STORAGE_PERMISSIONS);
+    }
+
+    private boolean hasLocationPermissions() {
+        return hasPermissions(LOCATION_PERMISSIONS);
+    }
+
+    private boolean hasPermissions(String[] permissions) {
+        for (String permission : permissions) {
             if (ActivityCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
                 return false;
             }
@@ -56,13 +76,21 @@ public class MainActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == PERMISSIONS_REQUEST_CODE) {
-            if (hasAllPermissions()) {
-                initializeCamera();
+            if (hasCameraStoragePermissions()) {
+                if (hasLocationPermissions()) {
+                    initializeCamera();
+                } else {
+                    explainPermissionReason("Location permissions are required for XYZ functionality.");
+                }
             } else {
-                Toast.makeText(this, "Permissions are required for this app", Toast.LENGTH_SHORT).show();
-                finish();
+                explainPermissionReason("Camera and storage permissions are required to capture and save photos.");
             }
         }
+    }
+
+    private void explainPermissionReason(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+        // Optionally, you could also show a dialog with more detailed explanation
     }
 
     private void initializeCamera() {
