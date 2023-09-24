@@ -21,6 +21,11 @@ import android.widget.VideoView;
 
 import androidx.core.content.FileProvider;
 
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -45,11 +50,18 @@ public class MainActivity extends Activity {
     private File file;
     private final MediaRecorder recorder = null;
     private final MediaPlayer player = null;
+    private StorageReference storageReference;  // Firebase Cloud Storage Reference
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // Initialize Firebase
+        FirebaseApp.initializeApp(this);
+
+        // Initialize Firebase Storage Reference
+        storageReference = FirebaseStorage.getInstance().getReference();
     }
 
     public void onLoadPhotoClick(View view) {
@@ -182,6 +194,21 @@ public class MainActivity extends Activity {
         return fileUri;
     }
 
+    private void uploadFileToFirebase(Uri fileUri, String folderName) {
+        if (fileUri != null) {
+            StorageReference fileRef = storageReference.child(folderName + "/" + fileUri.getLastPathSegment());
+            UploadTask uploadTask = fileRef.putFile(fileUri);
+            uploadTask.addOnSuccessListener(taskSnapshot -> {
+                // File uploaded successfully
+                Toast.makeText(MainActivity.this, "Upload successful", Toast.LENGTH_SHORT).show();
+            }).addOnFailureListener(exception -> {
+                // Handle unsuccessful uploads
+                Toast.makeText(MainActivity.this, "Upload failed", Toast.LENGTH_SHORT).show();
+            });
+        }
+    }
+
+
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
 
@@ -198,6 +225,10 @@ public class MainActivity extends Activity {
                 scanFile(file.getAbsolutePath());
                 ivPreview.setImageBitmap(takenImage);
                 ivPreview.setVisibility(View.VISIBLE);
+
+                // Upload to Firebase
+                uploadFileToFirebase(getFileUri(photoFileName), "images");
+
             } else { // Result was a failure
                 Toast.makeText(this, "Picture wasn't taken!", Toast.LENGTH_SHORT).show();
             }
@@ -219,6 +250,9 @@ public class MainActivity extends Activity {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
                 }
+
+                // Upload to Firebase
+                uploadFileToFirebase(data.getData(), "images");
             }
         } else if (requestCode == MY_PERMISSIONS_REQUEST_READ_VIDEOS) {
             if (resultCode == RESULT_OK) {
@@ -232,6 +266,9 @@ public class MainActivity extends Activity {
                         mVideoView.start();
                     }
                 });
+
+                // Upload to Firebase
+                uploadFileToFirebase(data.getData(), "videos");
             }
         } else if (requestCode == MY_PERMISSIONS_REQUEST_RECORD_VIDEO) {
             //if you are running on emulator remove the if statement
@@ -246,6 +283,9 @@ public class MainActivity extends Activity {
                         mVideoView.start();
                     }
                 });
+
+                // Upload to Firebase
+                uploadFileToFirebase(getFileUri(videoFileName, 1), "videos");
             }
         }
     }
