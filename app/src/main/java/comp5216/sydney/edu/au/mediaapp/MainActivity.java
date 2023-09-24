@@ -9,6 +9,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.camera.core.CameraInfoUnavailableException;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageCapture;
 import androidx.camera.core.ImageCaptureException;
@@ -67,15 +68,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean hasCameraStoragePermissions() {
-        return hasPermissions(CAMERA_STORAGE_PERMISSIONS);
+        for (String permission : CAMERA_STORAGE_PERMISSIONS) {
+            if (ActivityCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                Log.d("MainActivity", "Permission not granted: " + permission);
+                return false;
+            }
+        }
+        Log.d("MainActivity", "Camera and Storage permissions granted");
+        return true;
     }
 
     private boolean hasLocationPermissions() {
-        return hasPermissions(LOCATION_PERMISSIONS);
-    }
-
-    private boolean hasPermissions(String[] permissions) {
-        for (String permission : permissions) {
+        for (String permission : LOCATION_PERMISSIONS) {
             if (ActivityCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
                 return false;
             }
@@ -86,25 +90,25 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSIONS_REQUEST_CODE) {
-            if (hasCameraStoragePermissions()) {
-                if (hasLocationPermissions()) {
-                    initializeCamera();
-                } else {
-                    explainPermissionReason("Location permissions are required for XYZ functionality.");
-                }
+
+        if (hasCameraStoragePermissions()) {
+            if (hasLocationPermissions()) {
+                initializeCamera();
             } else {
-                explainPermissionReason("Camera and storage permissions are required to capture and save photos.");
+                ActivityCompat.requestPermissions(this, LOCATION_PERMISSIONS, PERMISSIONS_REQUEST_CODE);
             }
+        } else {
+            explainPermissionReason("Camera and storage permissions are required to capture and save photos.");
         }
     }
 
     private void explainPermissionReason(String message) {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show();
-        // Optionally, you could also show a dialog with more detailed explanation
     }
 
     private void initializeCamera() {
+        Log.d("MainActivity", "Initializing camera");
+
         final ListenableFuture<ProcessCameraProvider> cameraProviderFuture = ProcessCameraProvider.getInstance(this);
 
         cameraProviderFuture.addListener(() -> {
@@ -113,25 +117,37 @@ public class MainActivity extends AppCompatActivity {
 
                 if (cameraProvider == null) {
                     Log.d("MainActivity", "cameraProvider is null");
+                    Toast.makeText(MainActivity.this, "Camera provider is null.", Toast.LENGTH_LONG).show();
                     return;
                 }
 
-                Preview preview = new Preview.Builder().build();
                 CameraSelector cameraSelector = new CameraSelector.Builder()
                         .requireLensFacing(CameraSelector.LENS_FACING_BACK)
                         .build();
 
+                try {
+                    if (!cameraProvider.hasCamera(cameraSelector)) {
+                        Log.d("MainActivity", "No camera matching the camera selector.");
+                        Toast.makeText(MainActivity.this, "No camera available.", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                } catch (CameraInfoUnavailableException e) {
+                    Log.d("MainActivity", "Camera info unavailable: " + e.getMessage());
+                    Toast.makeText(MainActivity.this, "Camera info unavailable.", Toast.LENGTH_LONG).show();
+                    return;
+                }
+
+                Preview preview = new Preview.Builder().build();
                 imageCapture = new ImageCapture.Builder().build();
+                Log.d("MainActivity", "ImageCapture initialized");
 
                 preview.setSurfaceProvider(previewView.getSurfaceProvider());
 
                 cameraProvider.unbindAll();
                 cameraProvider.bindToLifecycle((LifecycleOwner) this, cameraSelector, preview, imageCapture);
-
-                Log.d("MainActivity", "Camera has been initialized");
+                Log.d("MainActivity", "Camera has been bound to lifecycle");
 
             } catch (ExecutionException | InterruptedException e) {
-                // Handle any errors here
                 Toast.makeText(this, "Error initializing camera", Toast.LENGTH_SHORT).show();
                 Log.d("MainActivity", "Error initializing camera: " + e.getMessage());
             }
@@ -140,23 +156,30 @@ public class MainActivity extends AppCompatActivity {
 
     private void takePhoto() {
         Log.d("MainActivity", "Inside takePhoto() method");
+
         if (imageCapture == null) {
             Toast.makeText(this, "Camera not initialized", Toast.LENGTH_SHORT).show();
+            Log.d("MainActivity", "ImageCapture is null");
             return;
         }
 
-        Log.d("MainActivity", "About to capture image");
-
-        // Generate a file to store the image
         File file = new File(getExternalFilesDir(null), "photo-" + System.currentTimeMillis() + ".jpg");
+        if(file.exists()) {
+            Log.d("MainActivity", "File already exists");
+        } else {
+            Log.d("MainActivity", "New file created at: " + file.getAbsolutePath());
+        }
 
         ImageCapture.OutputFileOptions outputFileOptions = new ImageCapture.OutputFileOptions.Builder(file).build();
+
+        Log.d("MainActivity", "About to capture image");
 
         imageCapture.takePicture(outputFileOptions, ContextCompat.getMainExecutor(this), new ImageCapture.OnImageSavedCallback() {
             @Override
             public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
                 String msg = "Photo captured: " + outputFileResults.getSavedUri();
                 Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_SHORT).show();
+                Log.d("MainActivity", "Image saved successfully");
             }
 
             @Override
@@ -166,4 +189,5 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
+
 }
