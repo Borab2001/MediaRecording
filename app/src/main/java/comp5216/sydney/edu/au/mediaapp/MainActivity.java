@@ -218,16 +218,12 @@ public class MainActivity extends Activity {
 
             File mediaStorageDir = new File(getExternalMediaDirs()[0], APP_TAG);
 
-            // Create the storage directory if it does not exist
             if (!mediaStorageDir.exists() && !mediaStorageDir.mkdirs()) {
                 Log.d(APP_TAG, "failed to create directory");
             }
 
-            // Create the file target for the media based on filename
             file = new File(mediaStorageDir, fileName);
 
-            // Wrap File object into a content provider, required for API >= 24
-            // See https://guides.codepath.com/android/Sharing-Content-with-Intents#sharing-files-with-api-24-or-higher
             if (Build.VERSION.SDK_INT >= 24) {
                 fileUri = FileProvider.getUriForFile(this.getApplicationContext(), "comp5216.sydney.edu.au.mediaapp.fileProvider", file);
             } else {
