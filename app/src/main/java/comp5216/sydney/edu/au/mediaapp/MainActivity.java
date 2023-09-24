@@ -33,6 +33,13 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
+import android.location.Address;
+import android.location.Geocoder;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import java.util.List;
+
 public class MainActivity extends Activity {
 
     //request codes
@@ -52,6 +59,9 @@ public class MainActivity extends Activity {
     private final MediaPlayer player = null;
     private StorageReference storageReference;  // Firebase Cloud Storage Reference
 
+    private LocationManager locationManager;  // <-- ADDED: To manage location updates
+    private String currentCity = "";  // <-- ADDED: Store the current city when taking photo or video
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -62,7 +72,42 @@ public class MainActivity extends Activity {
 
         // Initialize Firebase Storage Reference
         storageReference = FirebaseStorage.getInstance().getReference();
+
+        // Initialize LocationManager for fetching location
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        try {
+            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, locationListener);
+        } catch (SecurityException e) {
+            e.printStackTrace();
+        }
     }
+
+    LocationListener locationListener = new LocationListener() {
+        @Override
+        public void onLocationChanged(Location location) {
+            Geocoder geocoder = new Geocoder(MainActivity.this, Locale.getDefault());
+            try {
+                List<Address> addresses = geocoder.getFromLocation(location.getLatitude(), location.getLongitude(), 1);
+                if (addresses != null && !addresses.isEmpty()) {
+                    currentCity = addresses.get(0).getLocality(); // Get city name
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+        }
+    };
 
     public void onLoadPhotoClick(View view) {
 
@@ -196,7 +241,7 @@ public class MainActivity extends Activity {
 
     private void uploadFileToFirebase(Uri fileUri, String folderName) {
         if (fileUri != null) {
-            StorageReference fileRef = storageReference.child(folderName + "/" + fileUri.getLastPathSegment());
+            StorageReference fileRef = storageReference.child(currentCity + "/" + folderName + "/" + fileUri.getLastPathSegment());
             UploadTask uploadTask = fileRef.putFile(fileUri);
             uploadTask.addOnSuccessListener(taskSnapshot -> {
                 // File uploaded successfully
@@ -289,6 +334,15 @@ public class MainActivity extends Activity {
                 // Upload to Firebase
                 uploadFileToFirebase(getFileUri(videoFileName, 1), "videos");
             }
+        }
+    }
+
+    // Unregister the location listener to conserve battery
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (locationManager != null) {
+            locationManager.removeUpdates(locationListener);
         }
     }
 }
