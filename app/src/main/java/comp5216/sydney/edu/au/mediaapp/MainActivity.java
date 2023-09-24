@@ -201,9 +201,11 @@ public class MainActivity extends Activity {
             uploadTask.addOnSuccessListener(taskSnapshot -> {
                 // File uploaded successfully
                 Toast.makeText(MainActivity.this, "Upload successful", Toast.LENGTH_SHORT).show();
-            }).addOnFailureListener(exception -> {
+            })
+            .addOnFailureListener(exception -> {
                 // Handle unsuccessful uploads
-                Toast.makeText(MainActivity.this, "Upload failed", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "Upload failed: " + exception.getMessage(), Toast.LENGTH_LONG).show();
+                Log.e(APP_TAG, "Upload failed", exception);
             });
         }
     }
@@ -227,7 +229,7 @@ public class MainActivity extends Activity {
                 ivPreview.setVisibility(View.VISIBLE);
 
                 // Upload to Firebase
-                uploadFileToFirebase(getFileUri(photoFileName), "images");
+                uploadFileToFirebase(getFileUri(photoFileName, 1), "images");
 
             } else { // Result was a failure
                 Toast.makeText(this, "Picture wasn't taken!", Toast.LENGTH_SHORT).show();
@@ -268,7 +270,7 @@ public class MainActivity extends Activity {
                 });
 
                 // Upload to Firebase
-                uploadFileToFirebase(data.getData(), "videos");
+                uploadFileToFirebase(getFileUri(videoFileName, 1), "videos");
             }
         } else if (requestCode == MY_PERMISSIONS_REQUEST_RECORD_VIDEO) {
             //if you are running on emulator remove the if statement
